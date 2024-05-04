@@ -1,2 +1,15 @@
-https://www.geeksforgeeks.org/linear-regression-implementation-from-scratch-using-python/#
+KNN
+
+----
+
+So far I have done KNN regression with all the possible samples
+
+However the results aren't exactly great and the MSE are about 0.38 or below to 0.28 
+
+
+So what am I going to do now? 
+
+First, I actually want to try to use sckilearn just to get it going. The results might not be great
+like my own lol but it'll give a little basis maybe
+
 

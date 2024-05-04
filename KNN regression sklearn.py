@@ -2,17 +2,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import math
-
-   
-def split_dataset(X_data, y_data, train_split_perc):
-    size = X_data.shape[0]
-    
-    X_train = X_data[:int(train_split_perc * size),:]
-    X_test = X_data[int(train_split_perc * size):,:]
-    y_train = y_data[:int(train_split_perc * size)]
-    y_test = y_data[int(train_split_perc * size):]
-    
-    return X_train, X_test, y_train, y_test    
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import normalize
+            
     
 def HK_to_USD(value):
     
@@ -128,61 +122,9 @@ def preprocess():
 
 X_data, y_data = preprocess()
 
-####################################################################################
-"""
-K-NN
-"""
-class KNN_regression():
-    def __init__(self, K, X, y):
-        self.k = K
-        self.X_data = X
-        self.y_data = y
-        pass
-        
-    def euclidean_distance(self, p, q):
-        return math.sqrt((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2)    
+X_data = np.delete(X_data, 1, 1) 
 
-    def predict(self, X_test):        
-        predictions = []
-    
-        for i in range(X_test.shape[0]):
-            distances = []
-            for j in range(self.X_data.shape[0]):
-                
-                # get q and p values
-                q = list(X_test[i, :])
-                p = list(self.X_data[j, :])
-                
-                # calculate euclidean distance
-                ED = self.euclidean_distance(p, q)
-                distances.append(ED)
-                
-            
-            indices = np.argsort(distances)
-            predicted_value = np.mean(self.y_data[indices[0:self.k], -1])
-            predictions.append(predicted_value)
-            
-        return np.array(predictions)    
-
-####################################################################################
-####################################################################################
-# First attempt, trying predicting using Originalprice, time = X, DiscountPCT = y
-# Plot the values initally as a scatterplot:
-    
-colors = np.random.randint(len(X_data[:, 2]), size=(len(X_data[:, 2])))
-plt.scatter(X_data[:, 2], X_data[:, 0], c=colors, cmap='Set3')
-plt.title("Time vs Cost")
-plt.xlabel("Days Since first date in dataset")
-plt.ylabel("Original cost (in USD)")
-plt.show()   
-
-""""
-Create KNN Regression model
-"""
-
-num_samples = 5000
-
-time = np.array(X_data[:, 2])
+time = np.array(X_data[:, 1])
 time = time[:, np.newaxis]
 
 price = np.array(X_data[:, 0])
@@ -191,77 +133,29 @@ price = price[:, np.newaxis]
 X = np.append(time, price, axis=1)
 y = np.array(y_data[:,:])
 
-# try to pick only 100 samples of each
 
+n = 10
 
-# split data into training and testing 
-train_split = 0.80
-X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)  
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=50)
 
+neigh = KNeighborsRegressor(n_neighbors=n)
 
-#### KNN model ####
-K = 10
-reg = KNN_regression(K, X_train, y_train)
-predictions = reg.predict(X_test)
+neigh.fit(X_train, y_train)
 
-# Use MSE since right now, I am testing for regression
-MSE = calc_MSE(y_test, predictions)
+y_pred = neigh.predict(X_test)
+
+MSE = mean_squared_error(y_test, y_pred)
 RMSE = math.sqrt(MSE)
 
 print("MSE ", MSE)
 print("RMSE ",RMSE)
 
-
-colors = np.random.randint(len(predictions), size=(len(predictions)))
-plt.scatter(predictions, y_test, c=colors, cmap = 'Paired')
+colors = np.random.randint(len(y_pred), size=(len(y_pred)))
+plt.scatter(y_pred, y_test, c=colors, cmap = 'tab20c')
 plt.title("Predictions vs True Percentage Values")
 plt.xlabel("KNN Prediction")
 plt.ylabel("Original percentage")
 plt.show()  
-
-
-
-# Standardized version/attempt
-"""
-# X = (Time, Original Price)
-# y = (Discount percentage)
-time = np.array(X_data[:, 2])
-time = time[:, np.newaxis]
-
-price = np.array(X_data[:, 0])
-price = price[:, np.newaxis]
-
-X = np.append(time, price, axis=1)
-y = y_data
-
-# split data into training and testing {.70/.30}
-train_split = 0.70
-X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)   
-
-# KNN model
-K = 15
-reg = KNN_regression(K, X_train, y_train)
-predictions = reg.predict(X_test)
-
-# Use MSE since right now, I am testing for regression
-
-y_test_std = standardize(y_test)
-
-mse = calc_MSE(y_test_std, predictions)
-print("MSE: ", mse)
-
-colors = np.random.randint(len(predictions), size=(len(predictions)))
-plt.scatter(predictions, y_test_std, c=colors, cmap = 'Paired')
-plt.title("Predictions vs True Percentage Values (standardized)")
-plt.xlabel("KNN Prediction")
-plt.ylabel("Original percentage")
-plt.show()  
-
-"""
-
-
-
-
 
 
 

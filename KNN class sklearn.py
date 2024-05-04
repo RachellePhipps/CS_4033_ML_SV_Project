@@ -2,18 +2,50 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import math
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import normalize
+from sklearn.neighbors import KNeighborsClassifier
 
-   
-def split_dataset(X_data, y_data, train_split_perc):
-    size = X_data.shape[0]
+def classify(y):
+
     
-    X_train = X_data[:int(train_split_perc * size),:]
-    X_test = X_data[int(train_split_perc * size):,:]
-    y_train = y_data[:int(train_split_perc * size)]
-    y_test = y_data[int(train_split_perc * size):]
+    for i in range(y.shape[0]):
+        percentage = y[i]
+        
+        if percentage >= 0 and percentage <= 10:
+            y[i] = 0
     
-    return X_train, X_test, y_train, y_test    
-    
+        elif percentage >= 11 and percentage <= 20:
+            y[i] = 1
+            
+        elif percentage >= 21 and percentage <= 30:
+            y[i] = 2
+            
+        elif percentage >= 31 and percentage <= 40:
+            y[i] = 3
+            
+        elif percentage >= 41 and percentage <= 50:
+            y[i] = 4
+            
+        elif percentage >= 50 and percentage <= 60:
+            y[i] = 5
+            
+        elif percentage >= 61 and percentage <= 70:
+            y[i] = 6
+            
+        elif percentage >= 71 and percentage <= 80:
+            y[i] = 7
+            
+        elif percentage >= 81 and percentage <= 90:
+            y[i] = 8
+            
+        elif percentage >=91 and percentage <= 100:
+            y[i] = 9
+            
+    return y                 
+
 def HK_to_USD(value):
     
     return value * 0.13
@@ -128,138 +160,56 @@ def preprocess():
 
 X_data, y_data = preprocess()
 
-####################################################################################
-"""
-K-NN
-"""
-class KNN_regression():
-    def __init__(self, K, X, y):
-        self.k = K
-        self.X_data = X
-        self.y_data = y
-        pass
-        
-    def euclidean_distance(self, p, q):
-        return math.sqrt((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2)    
+X_data = np.delete(X_data, 1, 1) 
 
-    def predict(self, X_test):        
-        predictions = []
-    
-        for i in range(X_test.shape[0]):
-            distances = []
-            for j in range(self.X_data.shape[0]):
-                
-                # get q and p values
-                q = list(X_test[i, :])
-                p = list(self.X_data[j, :])
-                
-                # calculate euclidean distance
-                ED = self.euclidean_distance(p, q)
-                distances.append(ED)
-                
-            
-            indices = np.argsort(distances)
-            predicted_value = np.mean(self.y_data[indices[0:self.k], -1])
-            predictions.append(predicted_value)
-            
-        return np.array(predictions)    
+num_samples = 3000
 
-####################################################################################
-####################################################################################
-# First attempt, trying predicting using Originalprice, time = X, DiscountPCT = y
-# Plot the values initally as a scatterplot:
-    
-colors = np.random.randint(len(X_data[:, 2]), size=(len(X_data[:, 2])))
-plt.scatter(X_data[:, 2], X_data[:, 0], c=colors, cmap='Set3')
-plt.title("Time vs Cost")
-plt.xlabel("Days Since first date in dataset")
-plt.ylabel("Original cost (in USD)")
-plt.show()   
-
-""""
-Create KNN Regression model
-"""
-
-num_samples = 5000
-
-time = np.array(X_data[:, 2])
+time = np.array(X_data[0:num_samples, 1])
 time = time[:, np.newaxis]
 
-price = np.array(X_data[:, 0])
+price = np.array(X_data[0:num_samples, 0])
 price = price[:, np.newaxis]
 
 X = np.append(time, price, axis=1)
-y = np.array(y_data[:,:])
+y = np.array(y_data[0:num_samples,:])
 
-# try to pick only 100 samples of each
+y = classify(y)
 
+"""
+>>> X = [[0], [1], [2], [3]]
+>>> y = [0, 0, 1, 1]
+>>> from sklearn.neighbors import KNeighborsClassifier
+>>> neigh = KNeighborsClassifier(n_neighbors=3)
+>>> neigh.fit(X, y)
+KNeighborsClassifier(...)
+>>> print(neigh.predict([[1.1]]))
+[0]
+>>> print(neigh.predict_proba([[0.9]]))
+[[0.666... 0.333...]]
 
-# split data into training and testing 
-train_split = 0.80
-X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)  
-
-
-#### KNN model ####
-K = 10
-reg = KNN_regression(K, X_train, y_train)
-predictions = reg.predict(X_test)
-
-# Use MSE since right now, I am testing for regression
-MSE = calc_MSE(y_test, predictions)
-RMSE = math.sqrt(MSE)
-
-print("MSE ", MSE)
-print("RMSE ",RMSE)
+"""
 
 
-colors = np.random.randint(len(predictions), size=(len(predictions)))
-plt.scatter(predictions, y_test, c=colors, cmap = 'Paired')
+n = 15
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=42)
+
+normalize(X_train)
+normalize(X_test)
+
+neigh = KNeighborsClassifier(n_neighbors=15)
+
+neigh.fit(X, y)
+
+y_pred = neigh.predict(X_test)
+
+
+colors = np.random.randint(len(y_pred), size=(len(y_pred)))
+plt.scatter(y_pred, y_test, c=colors, cmap = 'Paired')
 plt.title("Predictions vs True Percentage Values")
 plt.xlabel("KNN Prediction")
 plt.ylabel("Original percentage")
 plt.show()  
-
-
-
-# Standardized version/attempt
-"""
-# X = (Time, Original Price)
-# y = (Discount percentage)
-time = np.array(X_data[:, 2])
-time = time[:, np.newaxis]
-
-price = np.array(X_data[:, 0])
-price = price[:, np.newaxis]
-
-X = np.append(time, price, axis=1)
-y = y_data
-
-# split data into training and testing {.70/.30}
-train_split = 0.70
-X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)   
-
-# KNN model
-K = 15
-reg = KNN_regression(K, X_train, y_train)
-predictions = reg.predict(X_test)
-
-# Use MSE since right now, I am testing for regression
-
-y_test_std = standardize(y_test)
-
-mse = calc_MSE(y_test_std, predictions)
-print("MSE: ", mse)
-
-colors = np.random.randint(len(predictions), size=(len(predictions)))
-plt.scatter(predictions, y_test_std, c=colors, cmap = 'Paired')
-plt.title("Predictions vs True Percentage Values (standardized)")
-plt.xlabel("KNN Prediction")
-plt.ylabel("Original percentage")
-plt.show()  
-
-"""
-
-
 
 
 
