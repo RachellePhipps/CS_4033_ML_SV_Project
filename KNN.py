@@ -166,8 +166,6 @@ class KNN_regression():
 
 ####################################################################################
 ####################################################################################
-# First attempt, trying predicting using Originalprice, time = X, DiscountPCT = y
-# Plot the values initally as a scatterplot:
     
 colors = np.random.randint(len(X_data[:, 2]), size=(len(X_data[:, 2])))
 plt.scatter(X_data[:, 2], X_data[:, 0], c=colors, cmap='Set3')
@@ -180,8 +178,6 @@ plt.show()
 Create KNN Regression model
 """
 
-num_samples = 5000
-
 time = np.array(X_data[:, 2])
 time = time[:, np.newaxis]
 
@@ -191,73 +187,98 @@ price = price[:, np.newaxis]
 X = np.append(time, price, axis=1)
 y = np.array(y_data[:,:])
 
-# try to pick only 100 samples of each
-
-
 # split data into training and testing 
 train_split = 0.80
 X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)  
 
 
-#### KNN model ####
-K = 10
+K = 15
 reg = KNN_regression(K, X_train, y_train)
 predictions = reg.predict(X_test)
 
-# Use MSE since right now, I am testing for regression
 MSE = calc_MSE(y_test, predictions)
 RMSE = math.sqrt(MSE)
 
+
+print("From Scratch")
 print("MSE ", MSE)
 print("RMSE ",RMSE)
+print("\n")
+
+######################################################
+##    Test for comparisons of different K values    ##
+######################################################
 
 
-colors = np.random.randint(len(predictions), size=(len(predictions)))
-plt.scatter(predictions, y_test, c=colors, cmap = 'Paired')
+# Hypothesis: k = 15 will yield the lowest RMSE
+# using the dataset split, test different k values to find the ideal k
+
+K_values = []
+MSE_values = []
+
+for K in range(5,16):
+    K_values.append(K)
+    train_split = 0.80
+    X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)  
+
+    reg = KNN_regression(K, X_train, y_train)
+    predictions = reg.predict(X_test)
+
+    MSE = calc_MSE(y_test, predictions)
+    RMSE = math.sqrt(MSE)
+    
+    MSE_values.append(RMSE)
+    
+    print("From Scratch using K=", str(K))
+    print("MSE ", MSE)
+    print("RMSE ",RMSE)
+    print("\n")
+
+
+plt.plot(K_values, MSE_values)
+plt.title("K values vs RMSE values")
+plt.xlabel("K")
+plt.ylabel("R Mean Squared Error")
+plt.show()  
+
+
+
+##############################################
+#############Scikit-learn version ############
+##############################################
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import normalize
+
+
+X_train_sc, X_test_sc, y_train_sc, y_test_sc = split_dataset(X, y, train_split)  
+
+neigh = KNeighborsRegressor(n_neighbors=K)
+
+neigh.fit(X_train_sc, y_train_sc)
+
+y_pred_sc = neigh.predict(X_test)
+
+MSE_sc = mean_squared_error(y_test_sc, y_pred_sc)
+RMSE_sc = math.sqrt(MSE_sc)
+
+
+print("Scikit-learn Version")
+print("MSE ", MSE_sc)
+print("RMSE ",RMSE_sc)
+
+
+plt.scatter(y_pred_sc, y_test_sc, c="orange")
+plt.scatter(predictions, y_test, c="blue")
+
+
 plt.title("Predictions vs True Percentage Values")
 plt.xlabel("KNN Prediction")
 plt.ylabel("Original percentage")
 plt.show()  
 
 
-
-# Standardized version/attempt
-"""
-# X = (Time, Original Price)
-# y = (Discount percentage)
-time = np.array(X_data[:, 2])
-time = time[:, np.newaxis]
-
-price = np.array(X_data[:, 0])
-price = price[:, np.newaxis]
-
-X = np.append(time, price, axis=1)
-y = y_data
-
-# split data into training and testing {.70/.30}
-train_split = 0.70
-X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)   
-
-# KNN model
-K = 15
-reg = KNN_regression(K, X_train, y_train)
-predictions = reg.predict(X_test)
-
-# Use MSE since right now, I am testing for regression
-
-y_test_std = standardize(y_test)
-
-mse = calc_MSE(y_test_std, predictions)
-print("MSE: ", mse)
-
-colors = np.random.randint(len(predictions), size=(len(predictions)))
-plt.scatter(predictions, y_test_std, c=colors, cmap = 'Paired')
-plt.title("Predictions vs True Percentage Values (standardized)")
-plt.xlabel("KNN Prediction")
-plt.ylabel("Original percentage")
-plt.show()  
-
-"""
 
 
 
