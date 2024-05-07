@@ -10,7 +10,7 @@ def process_file(filename, x_columns, y_column, filepath=''):
     df = pd.read_csv(filepath + filename)
     df = df.dropna()
     
-    print(df.iloc[1:3, 3:])
+    #print(df.iloc[1:3, 3:])
     #print(df.shape)
     for index, row in df.iterrows():
         for col in x_columns:

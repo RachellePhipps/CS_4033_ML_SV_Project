@@ -44,6 +44,16 @@ class DecisionTreeNode():
             child = DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index], depth=self.depth+1)
             self.children.append(child)
             child.loop_and_create_tree()
+    
+    def follow_tree(self, example):
+        if self.check_end_conditions():
+            return self.most_common_category
+        else:
+            if self.best_attribute.has_attribute(example):
+                #TODO: adapt for nonbinary case
+                return (self.children[0]).follow_tree(example)
+            else:
+                return (self.children[1]).follow_tree(example)
 
     def calculate_num_each_class(self):
         'Calculates how many examples correspond to each class'
@@ -115,7 +125,7 @@ class DecisionTreeNode():
                 self.best_attribute = attribute
                 best_attribute_entropy_gain = entropy_gain
 
-        print(best_attribute_entropy_gain)
+        #print(best_attribute_entropy_gain)
         return self.best_attribute
 
             
@@ -205,20 +215,44 @@ def create_real_attribute(dataframe, attribute, num_classes=5):
     
     return broken_attribute
 
+def evaluate_efficacy(model, test_set):
+    total_error = 0
+    squared_error = 0
+    num_examples = 0
+
+    for index, row in test_set.iterrows():
+        num_examples += 1
+        error = model.follow_tree(row) - row[YCOLUMN]
+        total_error += abs(error)
+        squared_error += error*error
+        
+        #if num_examples < 10:
+        #    print(error, num_examples)
+
+    mean_error = total_error/(num_examples)
+    mean_squared_error = squared_error/(num_examples)
+
+    return mean_error, mean_squared_error
+
+
 if __name__ == '__main__':
     training_set, testing_set = sklearn.model_selection.train_test_split(csv_cleanup.process_file(FILENAME, XCOLUMNS, YCOLUMN, FILEPATH)[0], test_size=0.2)
-    classes = generate_class_cutoffs(10)
+    classes = generate_class_cutoffs(20, difference=5)
     attributes = create_real_attribute(training_set, 'date_numeric') + create_real_attribute(training_set, 'OriginalPrice')
     print(classes)
     print(attributes)
     print("-" * 40)
     root = DecisionTreeNode(classes, training_set, attributes)
-    print(root.evaluate_entropy())
+    '''print(root.evaluate_entropy())
     #print(root.split_set_binary(attributes[6]))
 
     print(root.pick_next_attribute())
     print(root)
-    print('-' * 40)
+    print('-' * 40)'''
     root.loop_and_create_tree()
-    print(root)
+    #print(root)
+    print(testing_set.iloc[0])
+    #print(root.classes)
+    print(root.follow_tree(testing_set.iloc[0]))
+    print(evaluate_efficacy(root, testing_set))
     
