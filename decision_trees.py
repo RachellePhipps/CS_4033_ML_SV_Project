@@ -5,6 +5,9 @@ import sklearn
 import sklearn.model_selection
 import sklearn.linear_model
 import csv_cleanup
+from numpy.polynomial.polynomial import polyfit
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 TESTSPLIT = 0.2
 VALIDATIONSPLIT = 0.25
@@ -219,24 +222,58 @@ def evaluate_efficacy(model, test_set):
     total_error = 0
     squared_error = 0
     num_examples = 0
+    model_predictions_y = []
+    actual_discount_y = []
+    error_y = []
+    indices = []
 
     for index, row in test_set.iterrows():
         num_examples += 1
-        error = model.follow_tree(row) - row[YCOLUMN]
+
+        # Building our graphs' datasets
+        model_predictions_y.append(model.follow_tree(row))
+        actual_discount_y.append(row[YCOLUMN])
+        indices.append(index)
+
+        error = model_predictions_y[-1] - row[YCOLUMN]
+        error_y.append(error)
+        
         total_error += abs(error)
         squared_error += error*error
         
+
         #if num_examples < 10:
         #    print(error, num_examples)
 
     mean_error = total_error/(num_examples)
     mean_squared_error = squared_error/(num_examples)
 
+    plt.scatter(indices, model_predictions_y, label="model predictions", c='black', s=2)
+    plt.scatter(indices, actual_discount_y, label="actual discount", c='red', s=2)
+    plt.scatter(indices, error_y, s=2)
+    plt.show()
+    plt.scatter(indices[:50], model_predictions_y[:50], label="model predictions", c='black', s=2)
+    plt.scatter(indices[:50], actual_discount_y[:50], label="actual discount", c='red', s=2)
+    plt.scatter(indices[:50], error_y[:50], s=2)
+    plt.show()
+
     return mean_error, mean_squared_error
 
+def train_test_split(dataframe, training_size=0.8):
+    # This was partially stolen from Rachelle 
+
+    size = dataframe.shape[0]
+
+    randomized_dataframe = dataframe.sample(frac=1)
+
+    train = randomized_dataframe[:int(training_size * size)]
+    test = randomized_dataframe[int(training_size * size):]
+
+    return train, test
 
 if __name__ == '__main__':
-    training_set, testing_set = sklearn.model_selection.train_test_split(csv_cleanup.process_file(FILENAME, XCOLUMNS, YCOLUMN, FILEPATH)[0], test_size=0.2)
+    training_set, testing_set = train_test_split(csv_cleanup.process_file(FILENAME, XCOLUMNS, YCOLUMN, FILEPATH)[0], training_size=0.8)
+
     classes = generate_class_cutoffs(20, difference=5)
     attributes = create_real_attribute(training_set, 'date_numeric') + create_real_attribute(training_set, 'OriginalPrice')
     print(classes)
