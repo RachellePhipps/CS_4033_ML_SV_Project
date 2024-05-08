@@ -7,6 +7,16 @@ import math
 def split_dataset(X_data, y_data, train_split_perc):
     size = X_data.shape[0]
     
+    # combine X and Y
+    result = np.hstack((X_data, y_data))
+    
+    # shuffle
+    np.random.shuffle(result)
+    
+    # return back to X and Y
+    X_data = result[:, :2]
+    y_data = result[:, 2]
+        
     X_train = X_data[:int(train_split_perc * size),:]
     X_test = X_data[int(train_split_perc * size):,:]
     y_train = y_data[:int(train_split_perc * size)]
@@ -22,7 +32,7 @@ def calc_MSE(y_true, y_predict):
     mse = 0
 
     for i in range(len(y_predict)):
-        y_i = y_true[i, :].item()                
+        y_i = y_true[i]       
         hx_i = y_predict[i]                
         
         mse += (y_i - hx_i) ** 2
@@ -159,7 +169,7 @@ class KNN_regression():
                 
             
             indices = np.argsort(distances)
-            predicted_value = np.mean(self.y_data[indices[0:self.k], -1])
+            predicted_value = np.mean(self.y_data[indices[0:self.k]])
             predictions.append(predicted_value)
             
         return np.array(predictions)    
@@ -189,14 +199,16 @@ y = np.array(y_data[:,:])
 
 # split data into training and testing 
 train_split = 0.80
-X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)  
+X_train_, X_test_, y_train_, y_test_ = split_dataset(X, y, train_split)  
 
 
-K = 15
-reg = KNN_regression(K, X_train, y_train)
-predictions = reg.predict(X_test)
+K = 16
+reg = KNN_regression(K, X_train_, y_train_)
 
-MSE = calc_MSE(y_test, predictions)
+print("Running KNN from scratch ....")
+predictions = reg.predict(X_test_)
+
+MSE = calc_MSE(y_test_, predictions)
 RMSE = math.sqrt(MSE)
 
 
@@ -216,10 +228,11 @@ print("\n")
 K_values = []
 MSE_values = []
 
-for K in range(5,16):
+print("Checking different K values....")
+for K in range(5,21):
     K_values.append(K)
     train_split = 0.80
-    X_train, X_test, y_train, y_test = split_dataset(X, y, train_split)  
+    X_train, X_test, y_train, y_test = X_train_, X_test_, y_train_, y_test_
 
     reg = KNN_regression(K, X_train, y_train)
     predictions = reg.predict(X_test)
@@ -251,14 +264,15 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import normalize
 
+# Use the same data shuffle as first KNN 
 
-X_train_sc, X_test_sc, y_train_sc, y_test_sc = split_dataset(X, y, train_split)  
+X_train_sc, X_test_sc, y_train_sc, y_test_sc = X_train_, X_test_, y_train_, y_test_
 
 neigh = KNeighborsRegressor(n_neighbors=K)
 
 neigh.fit(X_train_sc, y_train_sc)
-
-y_pred_sc = neigh.predict(X_test)
+print("Running Scikit-learn KNN...")
+y_pred_sc = neigh.predict(X_test_sc)
 
 MSE_sc = mean_squared_error(y_test_sc, y_pred_sc)
 RMSE_sc = math.sqrt(MSE_sc)
@@ -269,9 +283,9 @@ print("MSE ", MSE_sc)
 print("RMSE ",RMSE_sc)
 
 
-plt.scatter(y_pred_sc, y_test_sc, c="orange")
-plt.scatter(predictions, y_test, c="blue")
-
+plt.scatter(y_pred_sc, y_test_sc, c="orange", label = "Scikit-learn", alpha=0.2)
+plt.scatter(predictions, y_test_, c="blue", label = "KNN from Scratch", alpha=0.2)
+plt.legend(title = "") 
 
 plt.title("Predictions vs True Percentage Values")
 plt.xlabel("KNN Prediction")
