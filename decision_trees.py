@@ -11,11 +11,11 @@ VALIDATIONSPLIT = 0.25
 FILENAME = 'historic_deals.csv'
 FILEPATH = ''
 XCOLUMNS = ['ReleaseDate', 'OriginalPrice', 'DiscountPCT']
-#XCOLUMNS = ['date_numeric', 'OriginalPrice']
+FINALXCOLUMNS = ['date_numeric', 'OriginalPrice']
 YCOLUMN = 'DiscountPCT'
 
 class DecisionTreeNode():
-    def __init__(self, classes, examples, attributes, depth=0):
+    def __init__(self, classes, examples, attributes, target_attribute, depth=0):
         self.classes = classes
         self.examples = examples
         self.attributes = attributes
@@ -24,6 +24,7 @@ class DecisionTreeNode():
         self.depth = depth
         self.calculate_num_each_class()
         self.children = []
+        self.target_attribute = target_attribute
         #print(self.num_each_class)
         
     def __repr__(self):
@@ -35,16 +36,51 @@ class DecisionTreeNode():
     def loop_and_create_tree(self):
         if self.check_end_conditions():
             return True
-        
+
         next_attribute = self.pick_next_attribute()
+
         sets = self.split_set_binary(next_attribute)
+
         sets_attributes = self.what_attributes_are_left(next_attribute)
+        
+        #print(len(sets_attributes[0]), len(sets_attributes[1]))
        
 
         for set_index in range(len(sets)):
-            child = DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index], depth=self.depth+1)
+            child = DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index], target_attribute= self.target_attribute, depth=self.depth+1)
             self.children.append(child)
             child.loop_and_create_tree()
+    
+    def loop_and_create_tree_rss(self):
+        print('open loop')
+        if self.check_end_conditions_rss():
+            return True
+        print('checked end conditions')
+
+        next_attribute = self.pick_next_attribute_RSS()
+
+        print('picked attribute')
+        sets = self.split_set_binary(next_attribute)
+        print('split set')
+        sets_attributes = self.what_attributes_are_left(next_attribute)
+        
+        print(len(sets_attributes[0]), len(sets_attributes[1]))
+       
+
+        for set_index in range(len(sets)):
+            child = DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index], target_attribute= self.target_attribute, depth=self.depth+1)
+            self.children.append(child)
+            child.loop_and_create_tree()
+    
+    def follow_tree_rss(self, example):
+        if self.check_end_conditions():
+            return self.find_average_item(self.examples)
+        else:
+            if self.best_attribute.has_attribute(example):
+                #TODO: adapt for nonbinary case
+                return (self.children[0]).follow_tree(example)
+            else:
+                return (self.children[1]).follow_tree(example)
     
     def follow_tree(self, example):
         if self.check_end_conditions():
@@ -56,6 +92,8 @@ class DecisionTreeNode():
             else:
                 return (self.children[1]).follow_tree(example)
 
+    def predict_rss(self, example):
+        return self.follow_tree_rss(example)
     def predict(self, example):
         return self.follow_tree(example)
         
@@ -124,6 +162,29 @@ class DecisionTreeNode():
         
         return False
     
+    def check_end_conditions_rss(self):
+        last_row = None
+        first_run = True
+        for index, row in self.examples.iterrows():
+            
+            if not first_run:
+                if row[self.target_attribute] != last_row[self.target_attribute]:
+                    if len(self.attributes) == 0:
+                        # impure node
+                        return True
+                    else:
+                        # Not over yet!
+                        return False
+            else:
+                first_run = False
+            
+            last_row = row
+        
+        self.pure = True
+        return True
+        
+
+
     def pick_next_attribute(self):
         self.best_attribute = self.attributes[0]
         best_attribute_entropy_gain = 0
@@ -136,7 +197,55 @@ class DecisionTreeNode():
 
         #print(best_attribute_entropy_gain)
         return self.best_attribute
+    
+    def pick_next_attribute_RSS(self):
+        self.best_attribute = self.attributes[0]
+        best_attribute_RSS = 0
+        for attribute in self.attributes:
+            rss = self.evaluate_RSS_binary(attribute)
+            print(rss)
+            if best_attribute_RSS > rss:
+                self.best_attribute = attribute
+                best_attribute_RSS = rss
+
+        #print(best_attribute_entropy_gain)
+        return self.best_attribute
+    
+    def find_average_item(self, examples):
+        num_items = 0
+        average_item = 0
+        for index, row in examples.iterrows():
+            average_item += row[self.target_attribute]
+            num_items += 1
         
+        if num_items != 0:
+            average_item = average_item / (num_items)
+        else:
+            average_item = 0
+        
+        return average_item
+
+    def evaluate_RSS_binary(self, attribute):
+        average_class_set = []
+        rss_set = []
+
+        sets = self.split_set_binary(attribute)
+        for set in sets:
+            average_class_set.append(self.find_average_item(set))
+
+            rss_set.append(0)
+            for index, row in set.iterrows():
+                rss_set[-1] += (row[self.target_attribute] - average_class_set[-1])**2
+        
+        total_rss = 0
+        for rss in rss_set:
+            total_rss += rss
+        
+        return total_rss
+
+        
+            
+
     def evaluate_entropy(self):
         entropy = 0
         for category in self.num_each_class:
@@ -154,7 +263,7 @@ class DecisionTreeNode():
         entropy = 0
 
         for set_index in range(len(sets)):
-            nodes.append(DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index]))
+            nodes.append(DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index], target_attribute= self.target_attribute))
             #TODO: this shouldn't be attributes as the last thing. It should reduce the # of attributes.
             entropy += ((nodes[-1].num_examples)/self.num_examples)*(nodes[-1].evaluate_entropy())
         
@@ -270,6 +379,34 @@ def evaluate_efficacy(model, test_set):
 
     return mean_error, mean_squared_error
 
+def delineate_attributes(xvariables, examples):
+        attribute_list = []
+        
+        for variable in range(len(xvariables)):
+            attribute_list.append([])
+            examples = examples.sort_values(by=xvariables[variable])
+            last_row = None
+            first_run = True
+
+            for index, row in examples.iterrows():
+                if not first_run:
+                    attribute_list[variable].append((row[xvariables[variable]] + last_row[xvariables[variable]])/2)
+                else:
+                    first_run = False
+                last_row = row
+
+        return attribute_list
+
+def turn_list_into_attribute_list(list_of_things):
+    product = []
+    for date in list_of_things[0]:
+        product.append(RealAttribute('date_numeric', date))
+    for price in list_of_things[1]:
+        product.append(RealAttribute('OriginalPrice', price))
+
+    return product
+        
+
 def train_test_split(dataframe, training_size=0.8):
     # This was partially stolen from Rachelle 
 
@@ -288,19 +425,23 @@ if __name__ == '__main__':
     classes = generate_class_cutoffs(20, difference=5)
     attributes = create_real_attribute(training_set, 'date_numeric') + create_real_attribute(training_set, 'OriginalPrice')
     print(classes)
-    print(attributes)
+    #print(attributes)
     print("-" * 40)
-    root = DecisionTreeNode(classes, training_set, attributes)
+    
     '''print(root.evaluate_entropy())
     #print(root.split_set_binary(attributes[6]))
 
     print(root.pick_next_attribute())
     print(root)
     print('-' * 40)'''
-    root.loop_and_create_tree()
+    '''root.loop_and_create_tree()
     #print(root)
     print(testing_set.iloc[0])
     #print(root.classes)
     print(root.follow_tree(testing_set.iloc[0]))
+    print(evaluate_efficacy(root, testing_set))'''
+    #attributes = turn_list_into_attribute_list(delineate_attributes(FINALXCOLUMNS, training_set))
+    root = DecisionTreeNode(classes, training_set, attributes, YCOLUMN)
+    root.loop_and_create_tree()
     print(evaluate_efficacy(root, testing_set))
     

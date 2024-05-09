@@ -29,7 +29,7 @@ class RandomForest():
         for tree in range(num_trees):
             randomized_dataframe = self.training_data.sample(frac=1, replace=True)
 
-            self.trees.append(decision_trees.DecisionTreeNode(self.classes, randomized_dataframe, self.select_attribute_subset()))
+            self.trees.append(decision_trees.DecisionTreeNode(self.classes, randomized_dataframe, self.select_attribute_subset(), YCOLUMN))
             self.trees[tree].loop_and_create_tree()
     
     def predict(self, example):
