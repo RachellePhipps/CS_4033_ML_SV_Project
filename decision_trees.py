@@ -1,9 +1,6 @@
 import pandas as pd
 import numpy as np
 import math
-import sklearn
-import sklearn.model_selection
-import sklearn.linear_model
 import csv_cleanup
 from numpy.polynomial.polynomial import polyfit
 import matplotlib.pyplot as plt
@@ -42,6 +39,7 @@ class DecisionTreeNode():
         next_attribute = self.pick_next_attribute()
         sets = self.split_set_binary(next_attribute)
         sets_attributes = self.what_attributes_are_left(next_attribute)
+       
 
         for set_index in range(len(sets)):
             child = DecisionTreeNode(self.classes, sets[set_index], sets_attributes[set_index], depth=self.depth+1)
@@ -58,12 +56,17 @@ class DecisionTreeNode():
             else:
                 return (self.children[1]).follow_tree(example)
 
+    def predict(self, example):
+        return self.follow_tree(example)
+        
     def calculate_num_each_class(self):
         'Calculates how many examples correspond to each class'
         self.num_examples = len(self.examples)
         self.num_each_class = []
         for category in self.classes:
             self.num_each_class.append(0)
+        
+        
 
         for index, row in self.examples.iterrows():
             self.num_each_class[self.which_class(row[YCOLUMN])] = self.num_each_class[self.which_class(row[YCOLUMN])] + 1
@@ -111,10 +114,13 @@ class DecisionTreeNode():
         if num_categories_present <= 1:
             self.confidence = most_common_category_number
             self.pure = True
+            #print('pure node')
 
             return True
         if len(self.attributes) == 0:
+            #print('impure node')
             return True
+        
         
         return False
     
@@ -130,8 +136,6 @@ class DecisionTreeNode():
 
         #print(best_attribute_entropy_gain)
         return self.best_attribute
-
-            
         
     def evaluate_entropy(self):
         entropy = 0
@@ -160,19 +164,21 @@ class DecisionTreeNode():
     
     def split_set_binary(self, attribute):
         '''The absolute worst way to do this'''
-        attribute_indices = []
+        '''attribute_indices = []
         not_attribute_indices = []
         for index, row in self.examples.iterrows():
             if attribute.has_attribute(row):
                 attribute_indices.append(index)
             else:
                 not_attribute_indices.append(index)
+        print(len(attribute_indices), len(not_attribute_indices))
+        '''
+        set1 = self.examples.loc[lambda df: attribute.has_attribute_dataframe(df)]
+        set2 = self.examples.loc[lambda df: ~(attribute.has_attribute_dataframe(df))]
+        
+        #print(self.examples.shape, set1.shape, set2.shape)
+        
 
-        set1 = self.examples.loc[attribute_indices, :].copy()
-        set2 = self.examples.loc[not_attribute_indices, :].copy()
-        #print(self.examples.shape)
-        #print(set1.shape)
-        #print(set2.shape)
         return set1, set2
 
 
@@ -180,7 +186,9 @@ class Attribute():
     def __init__(self):
         pass
     def has_attribute(self, example):
-        print("Dunno!")
+        return False
+    def has_attribute_dataframe(self, example):
+        return False
 
 class RealAttribute(Attribute):
     def __init__(self, column, cutoff):
@@ -190,6 +198,9 @@ class RealAttribute(Attribute):
     def __repr__(self):
         return self.col + ": " + str(self.cutoff)
 
+    def has_attribute_dataframe(self, example):
+        return example[self.col] < self.cutoff
+    
     def has_attribute(self, example):
         if example[self.col] < self.cutoff:
             return True
@@ -231,7 +242,7 @@ def evaluate_efficacy(model, test_set):
         num_examples += 1
 
         # Building our graphs' datasets
-        model_predictions_y.append(model.follow_tree(row))
+        model_predictions_y.append(model.predict(row))
         actual_discount_y.append(row[YCOLUMN])
         indices.append(index)
 
